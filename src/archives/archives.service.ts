@@ -1,91 +1,113 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, LessThanOrEqual } from 'typeorm';
 import { Archive } from './archive.entity';
-import { Retention } from '../retentions/retention.entity';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class ArchivesService {
+  private readonly logger = new Logger(ArchivesService.name);
+
   constructor(
     @InjectRepository(Archive)
-    private readonly archiveRepository: Repository<Archive>,
-    @InjectRepository(Retention)
-    private readonly retentionRepository: Repository<Retention>,
+    private archivesRepository: Repository<Archive>,
+    private auditLogsService: AuditLogsService,
   ) {}
 
-  async create(data: Partial<Archive>) {
-    const archive = this.archiveRepository.create(data);
-    return this.archiveRepository.save(archive);
+  async create(archiveData: any, user: any) {
+    const newArchive = this.archivesRepository.create(archiveData as object);
+    const savedArchive: any = await this.archivesRepository.save(newArchive);
+
+    await this.auditLogsService.create({
+      action: 'CREATE',
+      performedBy: user?.name || 'Sistem',
+      targetId: savedArchive.id,
+      details: `Registrasi arsip baru: ${savedArchive.title || 'Tanpa Judul'}. Retensi: ${savedArchive.retentionDate || 'Tidak diset'}`,
+    });
+
+    return savedArchive;
+  }
+
+  async update(id: string, updateData: any, user: any) {
+    await this.archivesRepository.update(id, updateData);
+    
+    await this.auditLogsService.create({
+      action: 'UPDATE',
+      performedBy: user?.name || 'Sistem',
+      targetId: id,
+      details: `Memperbarui metadata & jadwal retensi arsip`,
+    });
+
+    return this.archivesRepository.findOne({ where: { id } as any });
+  }
+
+  async remove(id: string, user: any) {
+    const archive: any = await this.archivesRepository.findOne({ where: { id } as any });
+    if (archive) {
+      await this.archivesRepository.delete(id);
+      await this.auditLogsService.create({
+        action: 'DELETE',
+        performedBy: user?.name || 'Sistem',
+        targetId: id,
+        details: `Menghapus arsip: ${archive.title || id}`,
+      });
+    }
+    return { message: 'Arsip berhasil dihapus' };
   }
 
   async findAll() {
-    return this.archiveRepository.find({ order: { uploadDate: 'DESC' } });
+    return this.archivesRepository.find();
   }
 
-  // --- FITUR 1: PENCARIAN (Yang tadi sempat hilang) ---
-  async search(query: string, category?: string) {
-    const searchCondition: any = [
-      { title: Like(`%${query}%`) },
-      { code: Like(`%${query}%`) },
-    ];
-
-    let results = await this.archiveRepository.find({
-      where: searchCondition,
-      order: { uploadDate: 'DESC' },
-    });
-
-    if (category && category !== 'Semua') {
-      results = results.filter(a => a.category === category);
+  async search(query: string, category: string) {
+    const qb = this.archivesRepository.createQueryBuilder('archive');
+    if (query && query.trim() !== '') {
+      qb.andWhere('(LOWER(archive.title) LIKE LOWER(:query) OR LOWER(archive.code) LIKE LOWER(:query))', { query: `%${query}%` });
     }
-
-    return results;
+    if (category && category !== 'Semua') {
+      qb.andWhere('LOWER(archive.category) = LOWER(:category)', { category });
+    }
+    return await qb.orderBy('archive.uploadDate', 'DESC').getMany();
   }
 
-  // --- FITUR 2: PENYUSUTAN JRA (Yang baru ditambahkan) ---
-  async getDisposalSchedule() {
-    const archives = await this.archiveRepository.find();
-    const retentions = await this.retentionRepository.find();
+  async findOne(id: string) {
+    return this.archivesRepository.findOne({ where: { id } as any });
+  }
 
-    const scheduled = archives.map(archive => {
-      const baseCode = archive.code.split('.')[0];
-      const rule = retentions.find(r => r.code === baseCode);
-
-      if (!rule) return { ...archive, statusJRA: 'Aturan Tidak Ditemukan', action: 'N/A' };
-
-      const uploadDate = new Date(archive.uploadDate);
-      const currentDate = new Date();
-      
-      const inactiveDate = new Date(uploadDate);
-      inactiveDate.setFullYear(uploadDate.getFullYear() + rule.activeYears);
-
-      const finalDate = new Date(inactiveDate);
-      finalDate.setFullYear(inactiveDate.getFullYear() + rule.inactiveYears);
-
-      let statusJRA = 'Masih Aktif';
-      let action = 'Simpan';
-
-      if (currentDate >= finalDate) {
-        statusJRA = `Waktunya ${rule.finalAction}`;
-        action = rule.finalAction === 'Musnah' ? 'MUSNAHKAN' : 'PERMANENKAN';
-      } else if (currentDate >= inactiveDate) {
-        statusJRA = 'Waktunya Inaktif';
-        action = 'PINDAHKAN KE INAKTIF';
-      }
-
-      return {
-        ...archive,
-        statusJRA,
-        action,
-        inactiveDate: inactiveDate.toISOString(),
-        finalDate: finalDate.toISOString(),
-      };
+  // =========================================================================
+  // ROBOT CRON JOB: EKSEKUTOR PEMUSNAHAN OTOMATIS
+  // Saat ini disetel jalan setiap 10 detik untuk testing. 
+  // Nanti saat skripsi, ubah ke: @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // =========================================================================
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async handleAutomatedDisposal() {
+    const today = new Date();
+    
+    // Cari semua arsip yang tanggal retensinya sudah lewat atau sama dengan hari ini
+    const expiredArchives = await this.archivesRepository.find({
+      where: {
+        retentionDate: LessThanOrEqual(today),
+      },
     });
 
-    return scheduled;
-  }
+    if (expiredArchives.length > 0) {
+      this.logger.warn(`Ditemukan ${expiredArchives.length} arsip yang habis masa retensinya. Memulai pemusnahan otomatis...`);
 
-  async remove(id: string) {
-    await this.archiveRepository.delete(id);
-    return { message: 'Arsip berhasil dihapus' };
+      for (const archive of expiredArchives) {
+        // 1. Hapus arsipnya
+        await this.archivesRepository.delete(archive.id);
+        
+        // 2. Catat ke Audit Log bahwa SISTEM yang menghapus otomatis
+        await this.auditLogsService.create({
+          action: 'DELETE',
+          performedBy: 'AUTO-DISPOSAL SYSTEM',
+          targetId: archive.id,
+          details: `Pemusnahan otomatis berdasarkan JRA. Arsip: ${archive.title}`,
+        });
+
+        this.logger.log(`Berhasil memusnahkan arsip: ${archive.title}`);
+      }
+    }
   }
 }

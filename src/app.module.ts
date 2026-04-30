@@ -1,33 +1,37 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './users/user.entity';
-import { Archive } from './archives/archive.entity';
-import { AuditLog } from './audit-logs/audit-log.entity';
-import { Retention } from './retentions/retention.entity';
+import { ScheduleModule } from '@nestjs/schedule';
 
+// Import Modul Fitur
 import { ArchivesModule } from './archives/archives.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
-import { RetentionsModule } from './retentions/retentions.module';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module'; // 1. Pastikan ini di-import
+import { UsersModule } from './users/users.module'; // Import modul user yang baru dibuat
 
 @Module({
   imports: [
+    // Mengaktifkan fitur Cron Job untuk penyusutan otomatis
+    ScheduleModule.forRoot(),
+
+    // Konfigurasi Database PostgreSQL
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
       port: 5432,
       username: 'postgres',
-      password: 'admin', 
-      database: 'edrms_db',
-      entities: [User, Archive, AuditLog, Retention],
-      synchronize: true,
+      password: 'admin', // Gunakan password sesuai pengaturan DBeaver kamu
+      database: 'edrms_db', // Nama database sesuai screenshot DBeaver kamu
+      autoLoadEntities: true,
+      synchronize: true, // Sinkronisasi otomatis struktur tabel di masa development
     }),
+
+    // Registrasi Fitur-Fitur Utama
     ArchivesModule,
     AuditLogsModule,
-    RetentionsModule,
     AuthModule,
-    UsersModule, // 2. Tambahkan ini ke dalam daftar!
+    UsersModule, // Memastikan modul user aktif
   ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}

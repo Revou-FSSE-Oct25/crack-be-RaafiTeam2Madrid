@@ -18,7 +18,11 @@ export class Archive {
   description: string;
 
   @Column({ nullable: true })
-  fileUrl: string; // Kolom baru untuk menyimpan nama file PDF
+  fileUrl: string;
+
+  // KOLOM BARU: Menyimpan batas waktu retensi arsip
+  @Column({ type: 'date', nullable: true })
+  retentionDate: Date;
 
   @CreateDateColumn()
   uploadDate: Date;

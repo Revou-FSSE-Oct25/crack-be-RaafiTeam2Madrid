@@ -1,14 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Archive } from './archive.entity';
-import { Retention } from '../retentions/retention.entity'; // <-- 1. Import tabel JRA
-import { ArchivesService } from './archives.service';
 import { ArchivesController } from './archives.controller';
+import { ArchivesService } from './archives.service';
+import { Archive } from './archive.entity';
+// Import modul Audit Log
+import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 
 @Module({
-  // 2. Tambahkan Retention ke dalam daftar fitur di ruangan ini
-  imports: [TypeOrmModule.forFeature([Archive, Retention])], 
-  providers: [ArchivesService],
+  imports: [
+    TypeOrmModule.forFeature([Archive]),
+    AuditLogsModule, // <- Tambahkan ke dalam array imports
+  ],
   controllers: [ArchivesController],
+  providers: [ArchivesService],
 })
 export class ArchivesModule {}

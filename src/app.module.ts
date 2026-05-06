@@ -7,6 +7,7 @@ import { ArchivesModule } from './archives/archives.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module'; // Import modul user yang baru dibuat
+import { AccessRequestsModule } from './access-requests/access-requests.module';
 
 @Module({
   imports: [
@@ -19,10 +20,10 @@ import { UsersModule } from './users/users.module'; // Import modul user yang ba
       host: 'localhost',
       port: 5432,
       username: 'postgres',
-      password: 'admin', // Gunakan password sesuai pengaturan DBeaver kamu
-      database: 'edrms_db', // Nama database sesuai screenshot DBeaver kamu
+      password: 'admin', // pw db
+      database: 'edrms_db', // nama database
       autoLoadEntities: true,
-      synchronize: true, // Sinkronisasi otomatis struktur tabel di masa development
+      synchronize: true, // Sinkronisasi otomatis struktur tabel
     }),
 
     // Registrasi Fitur-Fitur Utama
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module'; // Import modul user yang ba
     AuditLogsModule,
     AuthModule,
     UsersModule, // Memastikan modul user aktif
+    AccessRequestsModule,
   ],
   controllers: [],
   providers: [],

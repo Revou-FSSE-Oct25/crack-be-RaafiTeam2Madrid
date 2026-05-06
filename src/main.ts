@@ -1,27 +1,28 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+// 1. TAMBAHKAN DUA IMPORT INI DI ATAS:
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  // Membuat aplikasi NestJS
-  const app = await NestFactory.create(AppModule);
+  // 2. UBAH CARA PEMBUATAN APP MENJADI EXPRESS APPLICATION
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  /**
-   * AKTIFKAN CORS (Cross-Origin Resource Sharing)
-   * Ini wajib agar Next.js (port 3000) bisa mengambil data
-   * dari NestJS (port 3001) tanpa diblokir oleh browser.
-   */
   app.enableCors({
-    origin: 'http://localhost:3000', // Izin khusus untuk frontend kamu
+    origin: 'http://localhost:3000',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 
-  // Menjalankan backend di port 3001
-  await app.listen(3001);
+  // 3. BUKA JALUR AKSES KE FOLDER PENYIMPANAN PDF
+  // Asumsi file PDF kamu tersimpan di folder bernama 'uploads' di root backend
+  app.useStaticAssets(join(__dirname, '..', 'uploads'));
 
+  await app.listen(3001);
+  
   console.log('--------------------------------------------------');
   console.log('🚀 BACKEND EDRMS BERHASIL DIJALANKAN');
-  console.log('📡 Endpoint API: http://localhost:3001');
+  console.log('📂 Static File Server (PDF) AKTIF di folder /uploads');
   console.log('--------------------------------------------------');
 }
 

@@ -14,10 +14,10 @@ export class AuthService {
 
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.userRepository.findOne({ where: { email } });
-    
+
     if (user && user.password === pass) {
       const { password, ...result } = user;
-      
+
       // SESUAIKAN DENGAN ENTITY: action, performedBy, details, targetId
       await this.auditLogsService.create({
         action: 'LOGIN',
@@ -27,8 +27,9 @@ export class AuthService {
       });
 
       return {
-        accessToken: 'TOKEN_RAHASIA_EDRMS_' + Math.random().toString(36).substr(2),
-        user: result
+        accessToken:
+          'TOKEN_RAHASIA_EDRMS_' + Math.random().toString(36).substr(2),
+        user: result,
       };
     }
     throw new UnauthorizedException('Kredensial salah, silakan cek kembali.');

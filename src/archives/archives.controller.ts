@@ -8,13 +8,11 @@ import { ArchivesService } from './archives.service';
 export class ArchivesController {
   constructor(private readonly archivesService: ArchivesService) {}
 
-  // 👇 PERBAIKAN DI SINI: Tambahkan FileInterceptor untuk menangkap FormData
   @Post()
   @UseInterceptors(FileInterceptor('file', {
     storage: diskStorage({
-      destination: './uploads', // Menyimpan otomatis ke folder uploads
+      destination: './uploads',
       filename: (req, file, cb) => {
-        // Membuat nama file unik (gabungan angka random) agar file tidak tertimpa
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
       }
@@ -22,12 +20,11 @@ export class ArchivesController {
   }))
   create(
     @Body() createArchiveDto: any, 
-    @UploadedFile() file: any, // Tangkap file PDF yang dikirim
+    @UploadedFile() file: any,
     @Req() req: any
   ) {
-    const user = req.user || { name: 'Sistem Pusat', role: 'SYSTEM' }; 
+    const user = req.user || { name: 'Aditya Raafi Yudhatama (2026)', role: 'ADMIN' }; 
     
-    // Jika ada PDF yang sukses diunggah, sisipkan nama file-nya ke dalam database
     if (file) {
       createArchiveDto.fileUrl = file.filename;
     }
@@ -48,6 +45,11 @@ export class ArchivesController {
     return this.archivesService.search(query, category);
   }
 
+  @Get('destroyed')
+  findDestroyedArchives() {
+    return this.archivesService.findDestroyed();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.archivesService.findOne(id);
@@ -55,13 +57,24 @@ export class ArchivesController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateArchiveDto: any, @Req() req: any) {
-    const user = req.user || { name: 'Sistem Pusat', role: 'SYSTEM' };
+    const user = req.user || { name: 'Aditya Raafi Yudhatama (2026)', role: 'ADMIN' };
     return this.archivesService.update(id, updateArchiveDto, user);
+  }
+
+  // FITUR BARU: Endpoint API untuk Legal Hold
+  @Patch(':id/legal-hold')
+  toggleLegalHold(
+    @Param('id') id: string, 
+    @Body() body: { isLegalHold: boolean, reason: string }, 
+    @Req() req: any
+  ) {
+    const user = req.user || { name: 'Aditya Raafi Yudhatama (2026)', role: 'ADMIN' };
+    return this.archivesService.toggleLegalHold(id, body.isLegalHold, body.reason, user);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: any) {
-    const user = req.user || { name: 'Sistem Pusat', role: 'SYSTEM' };
+    const user = req.user || { name: 'Aditya Raafi Yudhatama (2026)', role: 'ADMIN' };
     return this.archivesService.remove(id, user);
   }
 }

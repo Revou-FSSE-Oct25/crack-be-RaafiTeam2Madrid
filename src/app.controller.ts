@@ -1,9 +1,9 @@
 import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
 
-@Controller('auth') // Alamat utamanya jadi http://localhost:3001/auth
+@Controller('auth') // Alamat utamanya jadi ${process.env.NEXT_PUBLIC_API_URL}/auth
 export class AppController {
   
-  @Post('login') // Sub-alamatnya jadi http://localhost:3001/auth/login
+  @Post('login') // Sub-alamatnya jadi ${process.env.NEXT_PUBLIC_API_URL}/auth/login
   handleLogin(@Body() body: any) {
     const { email, password } = body;
 

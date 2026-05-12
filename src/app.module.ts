@@ -23,15 +23,15 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     TypeOrmModule.forRoot({
       type: 'postgres',
       // Mengambil URL dari file .env agar kredensial aman
-      url: process.env.DATABASE_URL, 
+      url: process.env.DATABASE_URL,
       autoLoadEntities: true,
-      synchronize: true, 
+      synchronize: true,
       ssl: {
         rejectUnauthorized: false,
       },
       extra: {
         // Optimasi untuk koneksi pooler Supabase
-        max: 20, 
+        max: 20,
       },
     }),
 

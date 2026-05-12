@@ -1,37 +1,47 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ConfigModule } from '@nestjs/config';
 
 // Import Modul Fitur
 import { ArchivesModule } from './archives/archives.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module'; // Import modul user yang baru dibuat
+import { UsersModule } from './users/users.module';
 import { AccessRequestsModule } from './access-requests/access-requests.module';
+import { RetentionsModule } from './retentions/retentions.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
-    // Mengaktifkan fitur Cron Job untuk penyusutan otomatis
+    // Pastikan ConfigModule berada di paling atas agar .env terbaca lebih dulu
+    ConfigModule.forRoot({ isGlobal: true }),
+
     ScheduleModule.forRoot(),
 
-    // Konfigurasi Database PostgreSQL
+    // Konfigurasi Database PostgreSQL (Supabase Cloud via Connection Pooler)
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'admin', // pw db
-      database: 'edrms_db', // nama database
+      // Mengambil URL dari file .env agar kredensial aman
+      url: process.env.DATABASE_URL, 
       autoLoadEntities: true,
-      synchronize: true, // Sinkronisasi otomatis struktur tabel
+      synchronize: true, 
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      extra: {
+        // Optimasi untuk koneksi pooler Supabase
+        max: 20, 
+      },
     }),
 
-    // Registrasi Fitur-Fitur Utama
     ArchivesModule,
     AuditLogsModule,
     AuthModule,
-    UsersModule, // Memastikan modul user aktif
+    UsersModule,
     AccessRequestsModule,
+    RetentionsModule,
+    CloudinaryModule,
   ],
   controllers: [],
   providers: [],

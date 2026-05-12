@@ -11,14 +11,18 @@ export class RetentionsService {
   ) {}
 
   findAll() {
-    // KESALAHAN TERJADI DI SINI SEBELUMNYA
-    // Kita ubah 'classificationCode' menjadi 'code' agar sesuai dengan Entity
     return this.retentionRepository.find({ order: { code: 'ASC' } });
   }
 
   create(data: Partial<Retention>) {
     const retention = this.retentionRepository.create(data);
     return this.retentionRepository.save(retention);
+  }
+
+  // --- TAMBAHAN: Fungsi untuk melakukan Update (Edit) ---
+  async update(id: string, data: Partial<Retention>) {
+    await this.retentionRepository.update(id, data);
+    return this.retentionRepository.findOneBy({ id });
   }
 
   async remove(id: string) {

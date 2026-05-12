@@ -6,7 +6,7 @@ export class Retention {
   id: string;
 
   @Column({ unique: true })
-  code: string; // Contoh: SKP, HM, KP
+  code: string; 
 
   @Column()
   seriesName: string;

@@ -1,17 +1,43 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Archive } from './archive.entity';
+// TAMBAHAN: Import kurir Cloudinary kita
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ArchivesService {
   constructor(
     @InjectRepository(Archive)
     private archivesRepository: Repository<Archive>,
+    // TAMBAHAN: Inject Cloudinary Service
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  create(createArchiveDto: any, user: any) {
-    const newArchive = this.archivesRepository.create(createArchiveDto);
+  // PEROMBAKAN FUNGSI CREATE UNTUK CLOUDINARY
+  async create(createArchiveDto: any, user: any, file?: Express.Multer.File) {
+    let fileUrl = createArchiveDto.filePath || '';
+
+    // Jika ada file fisik (PDF/Gambar) yang di-upload, terbangkan ke Cloudinary!
+    if (file) {
+      try {
+        const uploadResult = await this.cloudinaryService.uploadFile(file);
+        fileUrl = uploadResult.secure_url; // Dapatkan link HTTPS Cloudinary
+      } catch (error) {
+        throw new BadRequestException('Gagal mengunggah dokumen ke Cloudinary');
+      }
+    }
+
+    // Simpan metadata, pastikan file path ter-update dengan link Cloudinary
+    const newArchive = this.archivesRepository.create({
+      ...createArchiveDto,
+      filePath: fileUrl, // Kolom database akan berisi URL publik dari Cloudinary
+    });
+
     return this.archivesRepository.save(newArchive);
   }
 
@@ -23,17 +49,20 @@ export class ArchivesService {
   }
 
   search(query: string, category: string) {
-    const queryBuilder = this.archivesRepository.createQueryBuilder('archive')
+    const queryBuilder = this.archivesRepository
+      .createQueryBuilder('archive')
       .where('archive.isDestroyed = :isDestroyed', { isDestroyed: false });
 
     if (query) {
       queryBuilder.andWhere(
         '(LOWER(archive.title) LIKE LOWER(:query) OR LOWER(archive.code) LIKE LOWER(:query))',
-        { query: `%${query}%` }
+        { query: `%${query}%` },
       );
     }
     if (category) {
-      queryBuilder.andWhere('LOWER(archive.category) = LOWER(:category)', { category });
+      queryBuilder.andWhere('LOWER(archive.category) = LOWER(:category)', {
+        category,
+      });
     }
 
     return queryBuilder.getMany();
@@ -60,7 +89,12 @@ export class ArchivesService {
   }
 
   // FITUR BARU: Mengaktifkan/Menonaktifkan Legal Hold
-  async toggleLegalHold(id: string, isLegalHold: boolean, reason: string, user: any) {
+  async toggleLegalHold(
+    id: string,
+    isLegalHold: boolean,
+    reason: string,
+    user: any,
+  ) {
     const archive = await this.findOne(id);
     await this.archivesRepository.update(id, {
       isLegalHold: isLegalHold,
@@ -72,16 +106,18 @@ export class ArchivesService {
   // PROTEKSI LEGAL HOLD SAAT PEMUSNAHAN
   async remove(id: string, user: any) {
     const archive = await this.findOne(id);
-    
+
     // Cegat jika arsip sedang dibekukan!
     if (archive.isLegalHold) {
-      throw new BadRequestException('Akses Ditolak: Arsip ini sedang dalam status Legal Hold (Dibekukan) dan dilindungi oleh sistem dari pemusnahan.');
+      throw new BadRequestException(
+        'Akses Ditolak: Arsip ini sedang dalam status Legal Hold (Dibekukan) dan dilindungi oleh sistem dari pemusnahan.',
+      );
     }
-    
+
     await this.archivesRepository.update(id, {
       isDestroyed: true,
       destroyedAt: new Date(),
-      destroyedBy: user.name || 'Aditya Raafi Yudhatama (2026)'
+      destroyedBy: user.name || 'Aditya Raafi Yudhatama (2026)',
     });
 
     return { message: 'Arsip berhasil dimusnahkan secara logis', archive };

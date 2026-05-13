@@ -30,7 +30,7 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   // 5. PENYESUAIAN PORT UNTUK RAILWAY
-  await app.listen(process.env.PORT || 3001);
+  await app.listen(process.env.PORT || 3001, '0.0.0.0');
   
   console.log('--------------------------------------------------');
   console.log('🚀 BACKEND EDRMS BERHASIL DIJALANKAN');

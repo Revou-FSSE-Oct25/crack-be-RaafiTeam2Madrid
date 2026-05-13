@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Delete, Param, Put } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Delete,
+  Param,
+  Put,
+} from '@nestjs/common';
 import { RetentionsService } from './retentions.service';
 import { Retention } from './retention.entity';
 
@@ -10,16 +18,16 @@ export class RetentionsController {
   async findAll() {
     // 1. Ambil data asli dari Service/Database
     const rawData = await this.retentionsService.findAll();
-    
+
     // 2. Terjemahkan agar sesuai dengan "selera" Frontend
-    return rawData.map(item => ({
+    return rawData.map((item) => ({
       id: item.id,
       code: item.code || `JRA-${item.id.substring(0, 4).toUpperCase()}`, // Jaga-jaga jika code di DBeaver kosong
       category: item.seriesName, // Ubah seriesName menjadi category
       activeYears: item.activeYears,
       inactiveYears: item.inactiveYears,
       finalAction: item.finalAction,
-      description: `Aturan retensi untuk ${item.seriesName}` // Buat deskripsi otomatis agar UI cantik
+      description: `Aturan retensi untuk ${item.seriesName}`, // Buat deskripsi otomatis agar UI cantik
     }));
   }
 
